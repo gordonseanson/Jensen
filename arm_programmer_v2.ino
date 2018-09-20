@@ -6,12 +6,13 @@ int SAVE = 13;
 float PROGRAM = 12;
 float PLAYPAUSE = 8;
 // Delay between each while() loop
-float delay_ms = 2.6;
+float delay_ms = 2.5;
 // Error margin for each move
 int errorMargin = 7;
 // Number of frames with moves
 float actualFrames;
 
+// Array for saving each position
 int frames = 15;
 int positionArray[15][4] = {
   {0, 0, 0, 0},
@@ -31,14 +32,15 @@ int positionArray[15][4] = {
   {0, 0, 0, 0},
 };
 
+// enhancedServo(char _name, Servo _servo, int _feed_pin, int _feed_min, int _feed_max, int _write_pin, int _write_min, int _write_max, double _Ki_neg, double _Ki_pos, double _alpha, int _errorMargin)
 Servo _base;
-enhancedServo base('b', _base, A0, 92, 378, 9, 560, 2300, 0.022, 0.022, 0.01, errorMargin);
+enhancedServo base('b', _base, A0, 96, 374, 9, 560, 2300, 0.024, 0.01, 11);
 Servo _shoulder;
-enhancedServo shoulder('s', _shoulder, A1, 83, 316, 11, 630, 2100, 0.03, 0.031, 0.01, 15);
+enhancedServo shoulder('s', _shoulder, A1, 87, 310, 11, 630, 2100, 0.028, 0.01, 15);
 Servo _elbow;
-enhancedServo elbow('e', _elbow, A2, 96, 373, 10, 600, 2200, 0.025, 0.025, 0.012, errorMargin);
+enhancedServo elbow('e', _elbow, A2, 100, 369, 10, 600, 2200, 0.021, 0.017, errorMargin);
 Servo _wrist;
-enhancedServo wrist('w', _wrist, A3, 88, 388, 6, 550, 2300, 0.025, 0.025, 0.01, errorMargin);
+enhancedServo wrist('w', _wrist, A3, 92, 395, 6, 550, 2350, 0.03, 0.02, errorMargin);
 
 void setup() {
   Serial.begin(57600);
@@ -47,8 +49,9 @@ void setup() {
   pinMode(PLAYPAUSE, INPUT);
 }
 
+// Main loop; can select various methods with the physical buttons
 void loop() {
-  // Skips without these loops
+  // Skips method without these loops
   while (digitalRead(PROGRAM) == HIGH) {
   }
   while (digitalRead(SAVE) == HIGH) {
@@ -81,6 +84,7 @@ void loop() {
   }
 }
 
+// Delegates all servo attachments
 void attach() {
   base.attach();
   shoulder.attach();
@@ -88,6 +92,7 @@ void attach() {
   wrist.attach();
 }
 
+// Delegates all servo detachments
 void detach() {
   base.detach();
   shoulder.detach();
@@ -95,6 +100,7 @@ void detach() {
   wrist.detach();
 }
 
+// Delegates all pre-initializers
 void preInitializer() {
   base.preInitializer();
   shoulder.preInitializer();
@@ -102,6 +108,7 @@ void preInitializer() {
   wrist.preInitializer();
 }
 
+// Delegates all loop initializers
 void loopInitializer() {
   base.loopInitializer();
   shoulder.loopInitializer();
@@ -109,6 +116,7 @@ void loopInitializer() {
   wrist.loopInitializer();
 }
 
+// Delegates all path compute methods
 void computePath(int i) {
   base.computePath(positionArray[i][0]);
   shoulder.computePath(positionArray[i][1]);
@@ -116,6 +124,7 @@ void computePath(int i) {
   wrist.computePath(positionArray[i][3]);
 }
 
+// Returns true if all servos have arrived at their respective positions
 boolean isArrived() {
   if (base.getArrived() && shoulder.getArrived() && elbow.getArrived() && wrist.getArrived()) {
     return true;
@@ -125,12 +134,13 @@ boolean isArrived() {
   Serial.print("Base arrival: "); Serial.print(base.getArrived()); Serial.print(" Shoulder arrival: "); Serial.print(shoulder.getArrived()); Serial.print(" Elbow arrival: "); Serial.print(elbow.getArrived()); Serial.print(" Wrist arrival: "); Serial.print(wrist.getArrived()); Serial.print("\n");
 }
 
+// Cycles through saved arm positions
 void playback() {
-  // Skips without this loop
+  // Skips method without this loop
   while (digitalRead(PLAYPAUSE) == HIGH) {
   }
   
-  // Count number of frames
+  // Count number of arm positions
   actualFrames = 0;
   for (int i = 0; i < frames; i++) {
     if (positionArray[i][0] != 0) {
@@ -138,10 +148,15 @@ void playback() {
     }
   }
 
+  // Initializes the integral as the pwm output for where the servo already is
   preInitializer();
+  // Connects all servos
   attach();
+  // Each for() loop represents one "move" to a arm position
   for (int i = 0; i < actualFrames; i++) {
+    // Initializes the arrival conditions as false before each move
     loopInitializer();
+    // While the arrival conditions are false, calculates error correction output for each servo
     while(!isArrived()) {
       computePath(i);
       delay(delay_ms);
@@ -151,6 +166,7 @@ void playback() {
   detach();
 }
 
+// Delegates saving each servo's position
 void savePositions(int i) {
   preInitializer();
   positionArray[i][0] = base.getFeedback();
